@@ -22,6 +22,9 @@ class ParakeetBackend:
             "backend": "fast-gpu-asr TensorRT",
             "bundle": str(bundle), "capacity": self.capacity,
         }
+        settings = Path(bundle) / "ready.json"
+        if settings.exists():
+            self.metadata["engine_settings"] = json.loads(settings.read_text())
 
     def transcribe(self, audios, language=None, decoder="tdt"):
         if decoder != "tdt":
@@ -79,10 +82,12 @@ class IndicConformerBackend:
         if not sessions:
             raise RuntimeError("No ONNX sessions found; inspect this model revision before serving")
         self.capacity = 1  # The official wrapper takes one waveform per call.
+        snapshot = source / "snapshot.json"
+        revision = json.loads(snapshot.read_text()).get("revision") if snapshot.exists() else "unrecorded"
         self.metadata = {
             "model_id": "ai4bharat/indic-conformer-600m-multilingual",
             "backend": provider, "sessions": sessions, "capacity": 1,
-            "revision": os.environ.get("INDIC_REVISION", "see snapshot.json"),
+            "revision": os.environ.get("INDIC_REVISION", revision),
             "frontend": "official TorchScript CPU", "torch_threads": torch.get_num_threads(),
             "rnnt_token_mapping": "publisher language-local predictor IDs retained",
         }

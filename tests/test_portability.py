@@ -21,11 +21,11 @@ class Portability(unittest.TestCase):
         for invalid in ["", "unknown", "parakeet,unknown"]:
             with self.assertRaises(ValueError): selected_models(invalid)
 
-    def test_each_deployment_uses_one_assigned_gpu_without_hardware_selector(self):
+    def test_each_deployment_uses_one_assigned_gpu_and_generic_platform_labels(self):
         for models in ["both", "parakeet", "indicconformer"]:
             resources = render("registry.example.com/team/asr:v1", models)
             pod = next(r for r in resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
-            self.assertNotIn("nodeSelector", pod)
+            self.assertEqual(pod["nodeSelector"], {"kubernetes.io/os": "linux", "kubernetes.io/arch": "amd64"})
             self.assertNotIn("initContainers", pod)
             container = pod["containers"][0]
             self.assertEqual(container["resources"]["limits"]["nvidia.com/gpu"], "1")

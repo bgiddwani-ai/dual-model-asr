@@ -25,7 +25,7 @@ The current kubectl context must target your intended cluster. It needs:
 - Sufficient GPU memory, CPU, RAM and persistent storage for your selected models and batch sizes.
 - Network access for initial model downloads and an image registry reachable by the nodes.
 
-The deployment requests one GPU, starts one pod with a `Recreate` strategy, and uses a ReadWriteOnce PVC. The resource defaults are configurable deployment starting points. TensorRT engines are built in the **same serving container** before inference, so a preparation job cannot accidentally build for a different node's GPU.
+The deployment requests one GPU, starts one pod with a `Recreate` strategy, and uses a ReadWriteOnce PVC. Standard Linux/AMD64 platform labels keep the image on compatible nodes; there is no fixed GPU product or host selection. The resource defaults are configurable deployment starting points. TensorRT engines are built in the **same serving container** before inference, so a preparation job cannot accidentally build for a different node's GPU.
 
 Install the control tools on the machine running kubectl, for every deployment mode:
 
