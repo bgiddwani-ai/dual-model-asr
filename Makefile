@@ -22,11 +22,13 @@ export ASR_ENABLED_MODELS := $(MODELS)
 export CUDA_VISIBLE_DEVICES := $(GPU)
 export PARAKEET_BATCH_SIZE PARAKEET_BEAM PARAKEET_PRECISION PARAKEET_OPTIMIZATION_LEVEL INDIC_CPU_THREADS
 
-.PHONY: help setup login doctor download prepare run transcribe benchmark report image push docker-run k8s-render deploy status port-forward test check
+.PHONY: help setup setup-client login doctor download prepare run transcribe benchmark report image push docker-run k8s-render deploy status port-forward test check
 help:
-	@printf '%s\n' 'make setup [MODELS=both|parakeet|indicconformer]' 'make login                  Hugging Face authentication' 'make run [MODELS=...]        Download, prepare and serve' 'make transcribe MODEL=... AUDIO=audio.wav' 'make benchmark MODEL=... MANIFEST=data/test.jsonl' 'make report                 Summarize your measurements' 'make image IMAGE=registry/image:tag' 'make docker-run [MODELS=...] [GPU=0]' 'make deploy IMAGE=registry/image:tag [MODELS=...]' 'make port-forward           Access Kubernetes on localhost' 'make test                   CPU contract tests'
+	@printf '%s\n' 'make setup [MODELS=both|parakeet|indicconformer]' 'make setup-client           CPU-only Kubernetes/control tools' 'make login                  Hugging Face authentication' 'make run [MODELS=...]        Download, prepare and serve' 'make transcribe MODEL=... AUDIO=audio.wav' 'make benchmark MODEL=... MANIFEST=data/test.jsonl' 'make report                 Summarize your measurements' 'make image IMAGE=registry/image:tag' 'make docker-run [MODELS=...] [GPU=0]' 'make deploy IMAGE=registry/image:tag [MODELS=...]' 'make port-forward           Access Kubernetes on localhost' 'make test                   CPU contract tests'
 setup:
 	bash scripts/setup.sh
+setup-client:
+	bash scripts/setup_client.sh
 login:
 	.venv/bin/hf auth login
 doctor:
@@ -46,11 +48,11 @@ benchmark:
 report:
 	python3 -m scripts.report --input results --output results/REPORT.md
 image:
-	docker build -f docker/Dockerfile -t '$(IMAGE)' .
+	docker build --platform linux/amd64 -f docker/Dockerfile -t '$(IMAGE)' .
 push:
 	docker push '$(IMAGE)'
 docker-run:
-	python3 -m scripts.docker_run --image '$(IMAGE)' --models '$(MODELS)' --gpu '$(GPU)'
+	$(if $(wildcard .venv/bin/python),.venv/bin/python,python3) -m scripts.docker_run --image '$(IMAGE)' --models '$(MODELS)' --gpu '$(GPU)'
 k8s-render:
 	@mkdir -p build
 	.venv/bin/python -m scripts.kubernetes render --image '$(IMAGE)' --models '$(MODELS)' --namespace '$(NAMESPACE)' --storage '$(PVC_SIZE)' > build/kubernetes.yaml

@@ -61,6 +61,8 @@ make image IMAGE=dual-model-asr:local
 make docker-run IMAGE=dual-model-asr:local MODELS=both GPU=0
 
 # Kubernetes: use an image reference reachable by your nodes
+make setup-client
+make login  # When deploying IndicConformer; accept its access terms first.
 make image IMAGE=registry.example.com/team/dual-model-asr:v1
 make push IMAGE=registry.example.com/team/dual-model-asr:v1
 make deploy IMAGE=registry.example.com/team/dual-model-asr:v1 MODELS=both

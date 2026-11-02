@@ -1,6 +1,6 @@
 # Docker and Kubernetes deployment
 
-All paths below are project-relative or container paths. Choose your registry, GPU ordinal, namespace and storage settings. The GPU server requires a compatible Linux x86-64 NVIDIA stack; clients can run elsewhere.
+All paths below are project-relative or container paths. Choose your registry, GPU ordinal, namespace and storage settings. The GPU server requires a compatible Linux x86-64 NVIDIA stack; clients can run elsewhere. Use `make setup-client` for CPU-only deployment tools on a Linux/macOS control machine (or WSL); it does not install either GPU model environment.
 
 ## Docker
 
@@ -27,21 +27,28 @@ The current kubectl context must target your intended cluster. It needs:
 
 The deployment requests one GPU, starts one pod with a `Recreate` strategy, and uses a ReadWriteOnce PVC. The resource defaults are configurable deployment starting points. TensorRT engines are built in the **same serving container** before inference, so a preparation job cannot accidentally build for a different node's GPU.
 
+Install the control tools on the machine running kubectl, for every deployment mode:
+
+```bash
+make setup-client
+```
+
 ## 1. Build and push your image
+
+Replace the example registry/image reference with your own. Authenticate to that registry with `docker login` before pushing.
 
 ```bash
 make image IMAGE=registry.example.com/team/dual-model-asr:v1
 make push IMAGE=registry.example.com/team/dual-model-asr:v1
 ```
 
-Replace the example reference with your registry/repository and a versioned tag. A local development cluster may instead load the image into its nodes using that cluster's image-loading command.
+Replace the example reference with your registry/repository and a versioned tag. `make image` targets Linux AMD64 explicitly; ARM development machines need a Docker builder with cross-platform support, or a remote AMD64 builder. No GPU is needed during image creation: export happens on the assigned serving GPU. A local development cluster may instead load the image into its nodes using that cluster's image-loading command.
 
 ## 2. Authenticate for IndicConformer
 
 On the machine running deployment commands:
 
 ```bash
-make setup MODELS=indicconformer
 make login
 ```
 
