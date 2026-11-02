@@ -1,0 +1,6 @@
+[submodule "upstream/TensorRT-fastconformer"]
+	path = upstream/TensorRT-fastconformer
+	url = https://github.com/bgiddwani-ai/TensorRT-fastconformer.git
+[submodule "upstream/fast-gpu-asr"]
+	path = upstream/fast-gpu-asr
+	url = https://github.com/SoundsGoodAI/fast-gpu-asr.git

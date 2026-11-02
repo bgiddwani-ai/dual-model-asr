@@ -1,0 +1,11 @@
+{
+  "parakeet": {
+    "repo_id": "nvidia/parakeet-tdt-0.6b-v3",
+    "revision": "541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
+    "filename": "parakeet-tdt-0.6b-v3.nemo"
+  },
+  "indicconformer": {
+    "repo_id": "ai4bharat/indic-conformer-600m-multilingual",
+    "revision": "2a77d305038dfc502fd9464e7d028b90381976cb"
+  }
+}

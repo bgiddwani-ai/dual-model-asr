@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asr
+  namespace: asr
+spec:
+  template:
+    spec:
+      containers:
+        - name: asr
+          env:
+            - name: ASR_ENABLED_MODELS
+              value: parakeet

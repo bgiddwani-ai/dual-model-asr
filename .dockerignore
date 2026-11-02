@@ -1,0 +1,15 @@
+.git
+**/.git
+.venv*
+artifacts
+models
+exported
+data
+examples/audio
+results
+build
+secrets
+.env*
+*.token
+**/__pycache__
+**/*.so

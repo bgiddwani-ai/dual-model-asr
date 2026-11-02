@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asr
+  namespace: asr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: asr
+  template:
+    metadata:
+      labels:
+        app: asr
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: asr
+          image: dual-model-asr:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: ASR_ENABLED_MODELS
+              value: parakeet,indicconformer
+            - name: ASR_ARTIFACTS_DIR
+              value: /artifacts
+            - name: ASR_AUTO_PREPARE
+              value: "1"
+            - name: HF_HOME
+              value: /cache/huggingface
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-access
+                  key: token
+                  optional: true
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "16"
+              memory: 64Gi
+              nvidia.com/gpu: "1"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 360
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 15
+          volumeMounts:
+            - name: artifacts
+              mountPath: /artifacts
+            - name: cache
+              mountPath: /cache
+            - name: shm
+              mountPath: /dev/shm
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: asr-artifacts
+        - name: cache
+          emptyDir: {}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 4Gi
