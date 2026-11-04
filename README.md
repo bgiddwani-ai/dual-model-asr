@@ -15,7 +15,7 @@ You need Docker, a container registry, `kubectl`, and a **Linux amd64 NVIDIA GPU
 
 ## 1. Create the container
 
-Replace the example image name with your registry. Build on any Docker host; inference runs on the GPU node.
+Replace the example image name with your registry. Use an amd64 Docker builder, or enable amd64 emulation on an ARM machine. Inference runs on the GPU node.
 
 ```bash
 git clone --recurse-submodules https://github.com/bgiddwani-ai/dual-model-asr.git
