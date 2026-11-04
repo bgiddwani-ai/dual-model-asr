@@ -56,4 +56,4 @@ We tested **45 completed configurations / 225 trials**: 10 Parakeet and 35 Indic
 
 The CSVs contain numeric benchmark evidence and generic configuration names. Model weights, audio, serialized engines and credentials are downloaded or generated separately. Your new run saves its own per-trial predictions, batch timings, configuration and summary in `/artifacts/results`.
 
-CI checks source, input handling, Kubernetes schemas, frozen corpus identities and recomputes published medians from the individual trials. A separate manual check builds the full Linux container. GPU inference requires a compatible GPU node.
+CI checks source, input handling, Kubernetes schemas, frozen corpus identities and recomputes published medians from the individual trials. The [clean Linux container build and runtime import checks](https://github.com/bgiddwani-ai/dual-model-asr/actions/runs/41760192220) passed. GPU inference was not rerun for this packaging update.
