@@ -1,5 +1,5 @@
 FROM nvidia/cuda:13.4.3-devel-ubuntu24.04
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /usr/local/bin/uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libsndfile1 libgomp1 g++ && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/asr

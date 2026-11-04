@@ -15,7 +15,7 @@ from scripts.project import ROOT, artifacts
 
 LIBRI_URL = "https://www.openslr.org/resources/12/test-clean.tar.gz"
 LIBRI_MD5 = "32fa31d27d2e1cad72775fee3f4849a9"
-FLEURS_URL = "https://huggingface.co/datasets/google/fleurs/resolve/refs%2Fconvert%2Fparquet/hi_in/test/0000.parquet"
+FLEURS_URL = "https://huggingface.co/datasets/google/fleurs/resolve/168de341b3db6859a9bac1c50a2ef5e3b47647e0/hi_in/test/0000.parquet"
 FLEURS_SHA256 = "8a0be26c5584c1478233a6f47fb90275c713f72565327ea1da76c9f1cd5dd38b"
 
 
