@@ -1,7 +1,0 @@
--r requirements-common.txt
-numpy==2.5.4
-transformers==4.57.6
-huggingface-hub==0.36.2
-onnxruntime-gpu[cuda,cudnn]==1.31.1
-onnx==1.23.2
-sentencepiece==0.2.2

@@ -12,4 +12,5 @@ for folder in ["asr_stack", "scripts", "tests"]:
         count += 1
 for path in (root / "scripts").glob("*.sh"):
     subprocess.run(["bash", "-n", str(path)], check=True)
+subprocess.run(["bash", "-n", str(root / "run.sh")], check=True)
 print(f"Syntax checks passed for {count} Python files and all shell entrypoints")

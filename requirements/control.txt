@@ -1,0 +1,2 @@
+-r common.txt
+huggingface-hub==2.4.0

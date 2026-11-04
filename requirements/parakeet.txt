@@ -1,0 +1,14 @@
+-r common.txt
+# Installed from the official CPU wheel index by scripts/setup.sh.
+torch==2.15.0+cpu
+fast-gpu-asr==0.2.0
+huggingface-hub==2.4.0
+numpy==2.5.4
+tensorrt-cu13==11.4.0.106
+cuda-bindings==13.4.4
+cuda-pathfinder==1.8.5
+cuda-toolkit[cccl,cublas,cudart,cufft,nvcc]==13.4.3
+cupy-cuda13x==14.2.0
+omegaconf==2.4.0
+onnx==1.23.2
+onnxscript==0.7.2

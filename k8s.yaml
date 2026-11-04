@@ -1,0 +1,53 @@
+# Replace the image with the registry/tag you built. Uses the default namespace
+# and default StorageClass. Add runtimeClassName if your cluster requires it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: asr-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: asr
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    kubernetes.io/os: linux
+    kubernetes.io/arch: amd64
+  containers:
+    - name: asr
+      image: registry.example.com/team/dual-model-asr:v1
+      command: ["sleep", "infinity"]
+      env:
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-access
+              key: token
+              optional: true
+      resources:
+        requests:
+          cpu: "32"
+          memory: 64Gi
+        limits:
+          cpu: "32"
+          memory: 64Gi
+          nvidia.com/gpu: "1"
+      volumeMounts:
+        - name: data
+          mountPath: /artifacts
+        - name: shm
+          mountPath: /dev/shm
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: asr-data
+    - name: shm
+      emptyDir:
+        medium: Memory
+        sizeLimit: 4Gi

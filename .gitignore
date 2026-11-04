@@ -11,7 +11,7 @@ models/
 exported/
 data/
 examples/audio/
-results/
+/results/
 build/
 *.plan
 *.engine

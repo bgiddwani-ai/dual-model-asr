@@ -1,97 +1,61 @@
 # Dual Model ASR
 
-[![Validation](https://github.com/bgiddwani-ai/dual-model-asr/actions/workflows/ci.yaml/badge.svg)](https://github.com/bgiddwani-ai/dual-model-asr/actions/workflows/ci.yaml)
+Reproduce **Parakeet-TDT-0.6B-v3** and **IndicConformer-600M** benchmarks with one container and one Kubernetes YAML.
 
-Run **Parakeet-TDT-0.6B-v3** and **IndicConformer-600M** from one repository, together or independently. Use a Linux GPU machine, Docker, or a Kubernetes cluster with NVIDIA GPUs.
+Our measured results on **one NVIDIA H100 80GB**:
 
-| Model | Default runtime | Individual guide |
-|---|---|---|
-| [NVIDIA Parakeet-TDT-0.6B-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) | TensorRT encoder and GPU TDT decoding | [Parakeet setup](docs/parakeet.md) |
-| [AI4Bharat IndicConformer-600M](https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual) | Official ONNX CUDA wrapper, CTC or RNNT | [IndicConformer setup](docs/indicconformer.md) |
+| Model | Median RTFx ↑ | WER ↓ | CER ↓ |
+|---|---:|---:|---:|
+| Parakeet — FP16, greedy, batch 256 | **14,240.02** | 2.1585% | 0.6389% |
+| IndicConformer — Hindi CTC, FP32/TF32, batch 32 | **4,222.21** | 12.2476% | 4.7734% |
 
-## Quick start
+[Results, quality comparisons and all 225 measured trials →](RESULTS.md)
 
-Server requirements: **Linux x86-64**, Python 3.12, `make`, `git`, a C++ compiler, libsndfile, [uv](https://docs.astral.sh/uv/getting-started/installation/), and a supported NVIDIA GPU/driver. The pinned Parakeet stack uses CUDA 13; upstream specifies **driver 580 or newer**, with newer drivers potentially needed for PTX features. Choose GPU memory and batch sizes for your workload. The HTTP client works on any device with Python 3.
+You need Docker, a container registry, `kubectl`, and a **Linux amd64 NVIDIA GPU node** with the NVIDIA device plugin and a driver compatible with CUDA 13.4. Use an **80GB GPU** for the published batch sizes; the YAML reserves **32 CPUs and 64GiB RAM**. It uses your cluster's default StorageClass; adjust resources, storage, GPU runtime class or image pull credentials for your cluster. Other hardware will produce different speeds.
+
+## 1. Create the container
+
+Replace the example image name with your registry. Build on any Docker host; inference runs on the GPU node.
 
 ```bash
 git clone --recurse-submodules https://github.com/bgiddwani-ai/dual-model-asr.git
 cd dual-model-asr
-make setup
+export IMAGE=registry.example.com/team/dual-model-asr:v1
+docker build --platform linux/amd64 -t "$IMAGE" .
+docker push "$IMAGE"
 ```
 
-For IndicConformer, first accept the [publisher's access conditions](https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual), then authenticate:
+## 2. Start the Kubernetes pod
+
+For IndicConformer, accept the [model's access conditions](https://huggingface.co/ai4bharat/indic-conformer-600m-multilingual). Create a secret with your own Hugging Face read token; the `read` command hides input.
 
 ```bash
-make login
-make run
+read -s HF_TOKEN
+printf %s "$HF_TOKEN" | kubectl create secret generic hf-access --from-file=token=/dev/stdin
+unset HF_TOKEN
 ```
 
-`make run` downloads the pinned snapshots, builds Parakeet engines on your selected GPU, and starts both models on port 8000. The first launch includes download/export time. In another terminal:
+In [k8s.yaml](k8s.yaml), set `image:` to the image you pushed, then:
 
 ```bash
-curl --fail http://127.0.0.1:8000/healthz
-python3 scripts/transcribe.py --model parakeet --audio data/english.wav
-python3 scripts/transcribe.py --model indicconformer --audio data/hindi.wav --language hi
+kubectl apply -f k8s.yaml
+kubectl wait --for=condition=Ready pod/asr --timeout=20m
 ```
 
-Supply your own WAV or FLAC files in `data/`. Input is downmixed and resampled to 16 kHz; each clip must be nonempty and at most 20 seconds. Stop the local server with Ctrl+C.
-
-## Choose one model
-
-| Task | Command |
-|---|---|
-| Set up Parakeet only | `make setup MODELS=parakeet` |
-| Run Parakeet only | `make run MODELS=parakeet` |
-| Set up IndicConformer only | `make setup MODELS=indicconformer` |
-| Run IndicConformer only | `make run MODELS=indicconformer` |
-| Choose a local GPU | `make run GPU=1` |
-| Change Parakeet batch capacity | `make run PARAKEET_BATCH_SIZE=32` |
-| Use greedy Parakeet decoding | `make run PARAKEET_BEAM=1` |
-| Check server prerequisites | `make doctor MODELS=both` |
-
-Defaults are both models, GPU ordinal 0, Parakeet batch capacity 8 and beam 6. Settings and quality checks are explained in the individual guides.
-
-## Docker and Kubernetes
-
-Use [the deployment guide](docs/deployment.md) for registry, storage, runtime and authentication settings.
+## 3. Run each model
 
 ```bash
-# Docker on a GPU host
-make image IMAGE=dual-model-asr:local
-make docker-run IMAGE=dual-model-asr:local MODELS=both GPU=0
-
-# Kubernetes: use an image reference reachable by your nodes
-make setup-client
-make login  # When deploying IndicConformer; accept its access terms first.
-make image IMAGE=registry.example.com/team/dual-model-asr:v1
-make push IMAGE=registry.example.com/team/dual-model-asr:v1
-make deploy IMAGE=registry.example.com/team/dual-model-asr:v1 MODELS=both
-make port-forward
+kubectl exec asr -- bash run.sh parakeet
+kubectl exec asr -- bash run.sh indicconformer
 ```
 
-Kubernetes requests one GPU for the enabled models. Engines are prepared **inside the serving container on its assigned GPU**. Engine cache keys include GPU and runtime compatibility settings; reusable model snapshots live on the PVC. The YAML has no fixed GPU product, node, storage class, cloud provider, or external endpoint.
-
-## Benchmarks
-
-Provide a JSONL manifest containing real audio paths and exact reference transcripts. Relative audio paths resolve beside the manifest. See [benchmarking](docs/benchmarking.md) for separate model commands, native Indic CTC, concurrency, and signed WER/CER comparisons.
+Each command downloads the pinned model and benchmark audio, builds engines **on the assigned GPU**, and runs five measured trials after warmup. Downloads and engine builds take time on the first run. Run the commands sequentially. The terminal prints RTFx, WER and CER; predictions, timings and summaries are saved in the container's `/artifacts/results` directory.
 
 ```bash
-make benchmark MODEL=parakeet MANIFEST=data/english-test.jsonl BATCH_SIZE=8
-make benchmark MODEL=indicconformer MANIFEST=data/hindi-test.jsonl LANGUAGE=hi
-make report
+kubectl cp asr:/artifacts/results ./results
+kubectl delete pod asr
 ```
 
-Results are generated on your own device under `results/`. This repository does not bundle machine-specific reports, model weights, engines, or credentials.
+The PVC retains downloaded models, datasets, engines and results. Delete it with `kubectl delete pvc asr-data` when you no longer need them. On smaller GPUs, use `kubectl exec asr -- env BENCH_BATCH_SIZE=8 bash run.sh parakeet`; this changes the benchmark configuration.
 
-## Exact upstream sources
-
-| Submodule | Pinned commit | Role |
-|---|---|---|
-| [SoundsGoodAI/fast-gpu-asr](https://github.com/SoundsGoodAI/fast-gpu-asr) | `10411b53603b1bb2b9bd81008ed155049e5f074a` | Parakeet export, TensorRT plugins and GPU TDT inference |
-| [bgiddwani-ai/TensorRT-fastconformer](https://github.com/bgiddwani-ai/TensorRT-fastconformer) | `93586a8d949d364f26c600e2f5213a9cdccf69aa` | Unchanged TensorRT runner and CTC decoder definitions for optional native Indic CTC |
-
-Upstream source files remain unchanged. An owned ONNX builder combines IndicConformer's official encoder and language-selected CTC head for the optional native path. Model snapshots are pinned in [configs/models.json](configs/models.json).
-
-More: [API](docs/api.md), [troubleshooting](docs/troubleshooting.md), [third-party notices](THIRD_PARTY_NOTICES.md).
-
-CI runs CPU contract tests, source checks, and Kubernetes schema checks. GPU export/inference and cluster deployment require a compatible target environment and real-audio verification.
+The exact upstream repositories remain pinned and unchanged: [SoundsGoodAI/fast-gpu-asr](https://github.com/SoundsGoodAI/fast-gpu-asr/tree/10411b53603b1bb2b9bd81008ed155049e5f074a) for Parakeet, and [TensorRT-fastconformer](https://github.com/bgiddwani-ai/TensorRT-fastconformer/tree/93586a8d949d364f26c600e2f5213a9cdccf69aa) for the native Indic runner and CTC decoder. An owned builder combines IndicConformer's official encoder and Hindi CTC head. [Model revisions](configs/models.json) · [Third-party notices](THIRD_PARTY_NOTICES.md).

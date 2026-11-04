@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
+import yaml
 
-from scripts.kubernetes import render
-from scripts.project import selected_models
+from scripts.project import ROOT, selected_models
 
 
 class Portability(unittest.TestCase):
@@ -21,29 +21,19 @@ class Portability(unittest.TestCase):
         for invalid in ["", "unknown", "parakeet,unknown"]:
             with self.assertRaises(ValueError): selected_models(invalid)
 
-    def test_each_deployment_uses_one_assigned_gpu_and_generic_platform_labels(self):
-        for models in ["both", "parakeet", "indicconformer"]:
-            resources = render("registry.example.com/team/asr:v1", models)
-            pod = next(r for r in resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
-            self.assertEqual(pod["nodeSelector"], {"kubernetes.io/os": "linux", "kubernetes.io/arch": "amd64"})
-            self.assertNotIn("initContainers", pod)
-            container = pod["containers"][0]
-            self.assertEqual(container["resources"]["limits"]["nvidia.com/gpu"], "1")
-            env = {e["name"]: e for e in container["env"]}
-            self.assertEqual(env["ASR_AUTO_PREPARE"]["value"], "1")
-            self.assertEqual(env["ASR_ENABLED_MODELS"]["value"], ",".join(selected_models(models)))
-            self.assertEqual("HF_TOKEN" in env, "indicconformer" in selected_models(models))
-
-    def test_namespace_registry_storage_and_runtime_are_configurable(self):
-        resources = render("registry.example.com/project/asr:v2", "indicconformer", "speech", "100Gi", "gpu", "pull-access")
-        self.assertEqual(resources[0]["metadata"]["name"], "speech")
-        for resource in resources[1:]: self.assertEqual(resource["metadata"]["namespace"], "speech")
-        pvc = next(r for r in resources if r["kind"] == "PersistentVolumeClaim")
-        self.assertEqual(pvc["spec"]["resources"]["requests"]["storage"], "100Gi")
-        pod = next(r for r in resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
-        self.assertEqual(pod["runtimeClassName"], "gpu")
-        self.assertEqual(pod["imagePullSecrets"], [{"name": "pull-access"}])
-        self.assertEqual(pod["containers"][0]["image"], "registry.example.com/project/asr:v2")
+    def test_yaml_assigns_one_gpu_and_retains_results_without_starting_workers(self):
+        resources = list(yaml.safe_load_all((ROOT / "k8s.yaml").read_text()))
+        self.assertEqual([r["kind"] for r in resources], ["PersistentVolumeClaim", "Pod"])
+        pvc, resource = resources
+        self.assertNotIn("storageClassName", pvc["spec"])
+        pod = resource["spec"]
+        self.assertEqual(pod["nodeSelector"], {"kubernetes.io/os": "linux", "kubernetes.io/arch": "amd64"})
+        container = pod["containers"][0]
+        self.assertEqual(container["resources"]["limits"]["nvidia.com/gpu"], "1")
+        self.assertEqual(container["resources"]["limits"]["cpu"], "32")
+        self.assertEqual(container["command"], ["sleep", "infinity"])
+        self.assertEqual(container["volumeMounts"][0]["mountPath"], "/artifacts")
+        self.assertNotIn("nodeName", pod)
 
     def test_manifest_moves_with_audio_and_partial_batch_counts_real_duration(self):
         from scripts import benchmark

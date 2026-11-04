@@ -1,9 +1,9 @@
-name: Validate portable repository
+name: Validate
 "on": [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
-  cpu-and-manifests:
+  validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -15,28 +15,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: |
-            requirements-common.txt
-            requirements-control.txt
-      - name: Install CPU test dependencies
-        run: python -m pip install -r requirements-control.txt
-      - name: Check source and input contracts
+          cache-dependency-path: requirements/*.txt
+      - name: Check source, inputs, corpus and published results
         run: |
-          make check
+          python -m pip install -r requirements/control.txt
+          python -m scripts.check_source
           PYTHONPATH=. python -m unittest discover -s tests -v
-      - name: Render all deployment modes
-        run: |
-          mkdir -p build
-          for model in both parakeet indicconformer; do
-            python -m scripts.kubernetes render --image registry.example.com/team/asr:v1 --models "$model" > "build/$model.yaml"
-          done
-      - name: Validate Kubernetes schemas
-        run: |
-          curl -fsSLo build/kubectl https://dl.k8s.io/release/v1.34.1/bin/linux/amd64/kubectl
-          curl -fsSLo build/kubectl.sha256 https://dl.k8s.io/release/v1.34.1/bin/linux/amd64/kubectl.sha256
-          echo "$(cat build/kubectl.sha256)  build/kubectl" | sha256sum --check
-          chmod +x build/kubectl
-          build/kubectl kustomize k8s > build/kustomize-both.yaml
-          build/kubectl kustomize k8s/overlays/parakeet > build/kustomize-parakeet.yaml
-          build/kubectl kustomize k8s/overlays/indicconformer > build/kustomize-indicconformer.yaml
-          docker run --rm -v "$PWD/build:/work:ro" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/both.yaml /work/parakeet.yaml /work/indicconformer.yaml /work/kustomize-both.yaml /work/kustomize-parakeet.yaml /work/kustomize-indicconformer.yaml
+      - name: Validate Kubernetes YAML
+        run: docker run --rm -v "$PWD:/work:ro" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/k8s.yaml

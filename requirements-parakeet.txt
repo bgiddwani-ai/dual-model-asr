@@ -1,4 +1,0 @@
--r requirements-common.txt
-fast-gpu-asr==0.2.0
-huggingface-hub==2.4.0
-numpy==2.5.4

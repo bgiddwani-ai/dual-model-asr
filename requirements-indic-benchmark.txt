@@ -1,3 +1,0 @@
--r requirements-indic.txt
-tensorrt-cu13==11.4.0.106
-pycuda==2026.1
