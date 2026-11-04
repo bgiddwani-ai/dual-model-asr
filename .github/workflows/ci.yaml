@@ -1,5 +1,13 @@
 name: Validate
-"on": [push, pull_request, workflow_dispatch]
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build_container:
+        description: Build the full Linux GPU image (no GPU inference)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -23,3 +31,23 @@ jobs:
           PYTHONPATH=. python -m unittest discover -s tests -v
       - name: Validate Kubernetes YAML
         run: docker run --rm -v "$PWD:/work:ro" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/k8s.yaml
+  container:
+    if: github.event_name == 'workflow_dispatch' && inputs.build_container
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Make room for CUDA and both isolated runtimes
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup
+      - name: Build the documented image
+        run: docker build --platform linux/amd64 -t dual-model-asr:check .
+      - name: Check installed runtimes and entrypoint
+        run: |
+          docker run --rm --entrypoint bash dual-model-asr:check -c '
+            bash run.sh --help
+            .venv/bin/python -c "import torch, cupy; assert torch.__version__ == \"2.15.0+cpu\""
+            .venv-indic/bin/python -c "import torch, onnxruntime; import importlib.metadata as m; assert m.version(\"pycuda\") == \"2026.1\""
+          '
